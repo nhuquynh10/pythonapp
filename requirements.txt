@@ -1,1 +1,7 @@
 Pillow
+fastapi
+uvicorn
+gunicorn
+pandas
+numpy
+openpyxl
