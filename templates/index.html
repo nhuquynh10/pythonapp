@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Đồ thị tri thức cây thuốc - GS.TS. Đỗ Tất Lợi</title><link rel="stylesheet" href="/static/style.css"></head>
+<body>
+<h1>Đồ thị tri thức được tạo từ cuốn sách 'Những cây thuốc và vị thuốc Việt Nam' của GS.TS. Đỗ Tất Lợi<br><small>Được phát triển bởi Prof Happy AI Research Group, 2026</small></h1>
+<div class="toolbar"><button class="green" id="draw">Draw Neighbours</button><button class="purple" id="show">Show Image</button><button class="orange" id="paths">Find k path</button><button class="red" id="clear">Clear All</button></div>
+<div class="layout"><div class="column">
+<section><header>Cửa sổ 1: Dữ liệu Tri thức</header><div class="body"><p class="file">Tệp KG hiện tại: <span id="filename">Edges.csv</span></p>
+<div class="controls"><label>Head: <select id="head"></select></label><label>Tail: <select id="tail"></select></label><button id="filter">Filter</button></div>
+<div class="controls"><label>Source: <input id="source" placeholder="Nhập hoặc chọn Head"></label><label>k= <input id="k" type="number" min="0" max="8" value="2"></label></div>
+<div class="tablewrap"><table><thead><tr><th>Head</th><th>Predicate</th><th>Tail</th></tr></thead><tbody id="edgeRows"></tbody></table></div><p id="count"></p></div></section>
+<section><header>Cửa sổ 2: Hướng dẫn &amp; Giới thiệu</header><div class="body guide"><strong>📖 GIỚI THIỆU SÁCH 'Những cây thuốc và vị thuốc Việt Nam'</strong><p>• Tác giả: Giáo sư Tiến sĩ Đỗ Tất Lợi.</p><p>Sách hệ thống hóa kiến thức về cây thuốc, vị thuốc, động vật và khoáng vật làm thuốc ở Việt Nam, bao gồm lý luận y học cổ truyền và phân loại các nhóm cây thuốc theo tác dụng chữa bệnh.</p><strong>🛠 HƯỚNG DẪN SỬ DỤNG CHƯƠNG TRÌNH</strong><ol><li>Chương trình đọc tệp tri thức từ <code>Edges.csv</code>.</li><li>Lọc Head/Tail rồi nhấn Filter.</li><li>Chọn một dòng hoặc nhập Source và nhấn Draw Neighbours.</li><li>Nhấn Show Image để xem ảnh sách nếu có.</li><li>Nhập k và nhấn Find k path để tìm các đường đi.</li><li>Nhấn Clear All để xóa kết quả.</li></ol></div></section>
+</div><div class="column">
+<section><header>Cửa sổ 3: Đồ thị Node kề / Hiển thị Ảnh</header><div class="body visualization" id="visual"><span class="muted">Chọn Source và nhấn Draw Neighbours để hiển thị đồ thị.</span></div></section>
+<section><header>Cửa sổ 4: Kết quả văn bản (k-path kèm Predicate)</header><div class="body"><pre id="output"></pre></div></section>
+</div></div>
+<script>
+const $=id=>document.getElementById(id);const output=$('output');
+function showError(e){output.textContent='Lỗi: '+e.message;}
+async function json(url){const r=await fetch(url);const data=await r.json();if(!r.ok)throw Error(data.detail||'Không thể tải dữ liệu');return data;}
+function fillSelect(id,values){const s=$(id),prev=s.value;s.replaceChildren();for(const v of ['All',...values]){const o=document.createElement('option');o.value=v;o.textContent=v;s.append(o);}if([...s.options].some(o=>o.value===prev))s.value=prev;}
+async function loadEdges(resetOptions=false){try{const head=$('head').value||'All',tail=$('tail').value||'All';const data=await json('/api/edges?head='+encodeURIComponent(head)+'&tail='+encodeURIComponent(tail));if(resetOptions){fillSelect('head',data.heads);fillSelect('tail',data.tails);}const body=$('edgeRows');body.replaceChildren();for(const r of data.rows){const tr=document.createElement('tr');for(const key of ['Head','Predicate','Tail']){const td=document.createElement('td');td.textContent=r[key];tr.append(td);}tr.onclick=()=>{$('source').value=r.Head;for(const old of body.querySelectorAll('.selected'))old.classList.remove('selected');tr.classList.add('selected');};body.append(tr);} $('filename').textContent=data.file;$('count').textContent='Hiển thị '+data.rows.length+' / '+data.total+' quan hệ';}catch(e){showError(e);}}
+$('filter').onclick=()=>loadEdges(false);
+$('draw').onclick=async()=>{try{const source=$('source').value.trim();if(!source)throw Error('Vui lòng chọn hoặc nhập Source!');const data=await json('/api/neighbours?source='+encodeURIComponent(source));output.textContent=`--- Các hàng xóm trực tiếp của '${source}' ---\n`+data.neighbours.map(n=>`- ${source} --[${n.predicate}]--> ${n.node}`).join('\n');const img=document.createElement('img');img.alt='Đồ thị các đỉnh kề';img.src='/api/neighbours/image?source='+encodeURIComponent(source)+'&t='+Date.now();$('visual').replaceChildren(img);}catch(e){showError(e);}};
+$('show').onclick=async()=>{try{const r=await fetch('/api/book-image');if(!r.ok){const data=await r.json();throw Error(data.detail||'Không thể tải ảnh');}const img=document.createElement('img');img.alt='Ảnh sách cây thuốc';img.src='/api/book-image';$('visual').replaceChildren(img);output.textContent='Đã hiển thị ảnh SachCayThuocGSDoTatLoi.jpg';}catch(e){showError(e);}};
+$('paths').onclick=async()=>{try{const k=Number($('k').value);if(!Number.isInteger(k)||k<0||k>8)throw Error('k phải là số nguyên từ 0 đến 8');const data=await json('/api/paths?k='+k);output.textContent=`Danh sách tất cả các con đường có độ dài k = ${k} (kèm Predicate):\n`+'='.repeat(65)+'\n'+(data.paths.length?data.paths.map((p,i)=>(i+1)+'. '+p).join('\n'):`Không tìm thấy con đường nào có độ dài k = ${k}!`)+(data.truncated?'\n(Lưu ý: chỉ hiển thị tối đa 3000 đường đi để tránh quá tải máy chủ)':'');}catch(e){showError(e);}};
+$('clear').onclick=()=>{output.textContent='';$('source').value='';$('k').value='2';$('visual').textContent='';$('head').value='All';$('tail').value='All';loadEdges(false);};
+loadEdges(true);
+</script></body></html>
